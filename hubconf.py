@@ -1,173 +1,235 @@
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
-from torchvision import datasets
-from torchvision.transforms import ToTensor
-import torch.nn.functional as Fun
-from torchmetrics import Precision, Recall, F1Score, Accuracy
-from torchmetrics.classification import accuracy
+import torch.optim as optim
+from sklearn.datasets import make_blobs
+from sklearn.datasets import make_circles
+from sklearn.datasets import load_digits
+from sklearn.cluster import KMeans
+from sklearn import metrics
+from sklearn.metrics import homogeneity_score,completeness_score,v_measure_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report,recall_score,roc_auc_score,precision_score,f1_score
+from sklearn.model_selection import GridSearchCV
+###### PART 1 ######
+
+def get_data_blobs(n_points=100):
+  
+  # write your code here
+  # Refer to sklearn data sets
+  X, y = make_blobs(n_samples=n_points)
+  # write your code ...
+  return X,y
+
+def get_data_circles(n_points=100):
+  
+  # write your code here
+  # Refer to sklearn data sets
+  X, y = make_circles(n_samples=n_points)
+  # write your code ...
+  return X,y
+
+def get_data_mnist():
+  
+  # write your code here
+  # Refer to sklearn data sets
+  
+  digits= load_digits()
+  X = digits.data
+  y = digits.target
+  
+  # write your code ...
+  return X,y
+
+def build_kmeans(X=None,k=10):
+  
+  # k is a variable, calling function can give a different number
+  # Refer to sklearn KMeans method
+  km = KMeans(n_clusters=k).fit(X)
+  
+  return km
+
+def assign_kmeans(km,X):
+  
+  # For each of the points in X, assign one of the means
+  # refer to predict() function of the KMeans in sklearn
+  # write your code ...
+  ypred = km.predict(X)
+  return ypred
+
+def compare_clusterings(ypred_1=None,ypred_2=None):
+  
+  # refer to sklearn documentation for homogeneity, completeness and vscore
+  h=homogeneity_score(ypred_1,ypred_2)
+  c=completeness_score(ypred_1,ypred_2)
+  v=v_measure_score(ypred_1,ypred_2)
+  
+  return h,c,v
+
+###### PART 2 ######
+
+def build_lr_model(X, y):
+  
+  lr_model = LogisticRegression().fit(X, y)
+  # write your code...
+  # Build logistic regression, refer to sklearn
+  return lr_model
+
+def build_rf_model(X, y):
+  
+  
+  # write your code...
+  # Build Random Forest classifier, refer to sklearn
+  rf_model=RandomForestClassifier()
+  rf_model.fit(X, y)
+  
+  return rf_model
+
+def get_metrics(model1,X,y):
+  
+  y_test=y
+  y_pred_test = model1.predict(X)
+  # View accuracy score
+  acc=accuracy_score(y_test, y_pred_test)
+  # print(acc)
+  rec=recall_score(y_test,y_pred_test,average='macro')
+  #print(rec)
+  prec=precision_score(y_test,y_pred_test,average='macro')
+  #print(prec)
+  f1=f1_score(y_test,y_pred_test,average='macro')
+  
+  fpr, tpr, thresholds = metrics.roc_curve(y_test, y_pred_test, pos_label=2)
+  auc = metrics.auc(fpr, tpr)
+  
+  #auc=roc_auc_score(y_test,y_pred_test,multi_class='ovr')
+  #print(auc)
+  # write your code here...
+  
+  return acc, prec, rec, f1, auc
 
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-batch_size=64
 
+def get_paramgrid_lr():
+  # you need to return parameter grid dictionary for use in grid search cv
+  # penalty: l1 or l2
+  
+  lr_param_grid = {'penalty' : ['l1','l2']}
 
+  
+  # refer to sklearn documentation on grid search and logistic regression
+  # write your code here...
+  return lr_param_grid
 
-class myCnn(nn.Module):
-    def __init__(self,num_channels,num_classes,h,w,config):
-        super(myCnn,self).__init__()
-        
-        self.net_stack = nn.Sequential()
-        self.final_output_channels = 0
-        for i in range(len(config)):
-            layer = config[i]
+def get_paramgrid_rf():
+  # you need to return parameter grid dictionary for use in grid search cv
+  # n_estimators: 1, 10, 100
+  # criterion: gini, entropy
+  # maximum depth: 1, 10, None  
+  rf_param_grid = { 'n_estimators' : [1,10,100],'criterion' :["gini", "entropy"], 'max_depth' : [1,10,None]  }
+  # refer to sklearn documentation on grid search and random forest classifier
+  # write your code here...
+  return rf_param_grid
 
-            num_in_channels=layer[0]
-            num_out_channels=layer[1]
-            kernel = layer[2]
-            padding = layer[4] # assuming that padding is always given as 'same'
-            
-            if isinstance(layer[3],int):
-                stride = [layer[3],layer[3]]
-            else:
-                stride = layer[3]
+def perform_gridsearch_cv_multimetric(model=None, param_grid=None, cv=5, X=None, y=None, metrics=['accuracy','roc_auc']):
+  
+  # you need to invoke sklearn grid search cv function
+  # refer to sklearn documentation
+  # the cv parameter can change, ie number of folds  
+  
+  # metrics = [] the evaluation program can change what metrics to choose
+  
+  grid_search_cv = None
+  # create a grid search cv object
+  # fit the object on X and y input above
+  # write your code here...
+  
+  # metric of choice will be asked here, refer to the-scoring-parameter-defining-model-evaluation-rules of sklearn documentation
+  
+  # refer to cv_results_ dictonary
+  # return top 1 score for each of the metrics given, in the order given in metrics=... list
+  
+  top1_scores = []
+  
+  
+  if X.ndim > 2:
+      n_samples = len(X)
+      X= X.reshape((n_samples, -1))
+      
+  for score in metrics:
+      grid_search_cv = GridSearchCV(model,param_grid,scoring = score,cv=cv)
+      grid_search_cv.fit(X,y)
+      top1_scores.append(grid_search_cv.best_estimator_.get_params())
+  
+  return top1_scores
+      
 
-            self.net_stack.append(nn.Conv2d(in_channels = num_in_channels, out_channels=num_out_channels,
-                                    kernel_size=kernel,stride = stride,padding=padding).to(device))
-            self.net_stack.append(nn.ReLU())
-
-            if padding != "same":
-                if isinstance(padding,int):
-                    padding = [padding,padding]
-                h = (int)((h - kernel[0] + 2 *padding[0])/stride[0])+1
-                w = (int)((w - kernel[1] + 2 *padding[0])/stride[1])+1
-
-            if i == len(config)-1:
-                self.final_output_channels = num_out_channels
-
-        self.net_stack.append(nn.Flatten())
-        self.net_stack.append(nn.Linear(self.final_output_channels*h*w,num_classes).to(device))
-        self.net_stack.append(nn.Softmax(1))
+###### PART 3 ######
+class MyNN(nn.Module):
+  def __init__(self,inp_dim=64,hid_dim=13,num_classes=10):
+    super(MyNN,self)
     
-    def forward(self,x):
-        x = self.net_stack(x)
-        return x
-
-
-def custom_loss(ypred,ytrue):
-    ypred , ytrue = ypred.to(device) , ytrue.to(device)
-    v = -(ytrue * torch.log(ypred + 0.0001))
-    v = torch.sum(v)
-    return v
-
-
-def test(dataloader, model, loss_fn):
-    size = len(dataloader.dataset)
-    num_batches = len(dataloader)
-    num_classes= len(dataloader.dataset.classes)
-    model.eval()
-    test_loss, correct = 0, 0
-
-    ypred = []
-    ytrue = []
-    with torch.no_grad():
-        for X, y in dataloader:
-            X, y = X.to(device), y.to(device)
-            tmp = Fun.one_hot(y, num_classes= num_classes).to(device)
-            pred = model(X)
-            ypred.append(pred.argmax(1))
-            ytrue.append(y)
-            test_loss += loss_fn(pred, tmp).item()
-            correct += (pred.argmax(1) == y).type(torch.float).sum().item()
+    self.fc_encoder = nn.Linear(inp_dim, hid_dim) # write your code inp_dim to hid_dim mapper
+    self.fc_decoder = nn.Linear(hid_dim, inp_dim) # write your code hid_dim to inp_dim mapper
+    self.fc_classifier = nn.Linear(hid_dim, num_classes) # write your code to map hid_dim to num_classes
     
-    test_loss /= num_batches
-    correct /= size
-    ypred = torch.cat(ypred)
-    ytrue = torch.cat(ytrue)
+    self.relu = nn.ReLU() #write your code - relu object
+    self.softmax = nn.Softmax(dim=1) #write your code - softmax object
     
+  def forward(self,x):
+    x = nn.Flatten() # write your code - flatten x
+    x_enc = self.fc_encoder(x)
+    x_enc = self.relu(x_enc)
     
-    print(f"\nAvg loss: {test_loss:>8f} \n")
+    y_pred = self.fc_classifier(x_enc)
+    y_pred = self.softmax(y_pred)
     
-    accuracy1 = Accuracy().to(device)
-    acc = accuracy1(ypred,ytrue).item()*100
-    print(f'Accuracy : {acc:.3f} %')
+    x_dec = self.fc_decoder(x_enc)
     
-    precision = Precision(average = 'macro', num_classes = num_classes).to(device)
-    pre = precision(ypred,ytrue).item()
-    print(f'precision : {pre :.4f}')
-
-    recall = Recall(average = 'macro', num_classes = num_classes).to(device)
-    re = recall(ypred,ytrue).item()
-    print(f'recall : {re:.4f}')
+    return y_pred, x_dec
+  
+  # This a multi component loss function - lc1 for class prediction loss and lc2 for auto-encoding loss
+  def loss_fn(self,x,yground,y_pred,xencdec):
     
-    f1_score = F1Score(average = 'macro', num_classes = num_classes).to(device)
-    f1 = f1_score(ypred,ytrue).item()
-    print(f'f1_score : {f1: .4f}')
-
-    return acc,pre,re,f1
-
-
-def _train(trainloader,my_model,loss_fun,optimizer):
-    num_data_points = len(trainloader.dataset)
-    num_batches = len(trainloader)
-    num_classes = len(trainloader.dataset.classes)
-    my_model.train()
-    train_loss = 0
-    for batch , (X,y) in enumerate(trainloader):
-        X, y = X.to(device), y.to(device)
-        ypred = my_model(X)
-        y= Fun.one_hot(y,num_classes)
-        loss = loss_fun(ypred,y)
-        train_loss += loss.item()
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        # if batch % (num_batches // 4) == 0:
-        #     loss, current = loss.item(), batch * len(X)
-        #     print(f"loss: {loss:>7f}  [{current:>5d}/{num_data_points:>5d}]")
-    print(f"Avg loss: {train_loss/num_batches:>8f} \n")
-
-
-def train(trainloader,my_model,epochs,learning_rate=1e-3):
-    loss_fun = custom_loss
-    optimizer = torch.optim.SGD(my_model.parameters(),lr=learning_rate,momentum=0.9)
-
-    for i in range(epochs):
-        print("running epoch ",i)
-        _train(trainloader,my_model,loss_fun,optimizer)
-
-
-def get_model(trainloader,config,epochs,learning_rate):
+    # class prediction loss
+    # yground needs to be one hot encoded - write your code
+    lc1 = None # write your code for cross entropy between yground and y_pred, advised to use torch.mean()
     
-    N , num_channels , height , width = next(iter(trainloader))[0].shape
-    num_classes = len(trainloader.dataset.classes)
+    # auto encoding loss
+    lc2 = torch.mean((x - xencdec)**2)
     
-    my_model = myCnn(num_channels,num_classes,height,width,config).to(device)
+    lval = lc1 + lc2
     
-    train(trainloader,my_model,epochs,learning_rate)
+    return lval
     
-    return my_model
-
-
-def get_data_loaders():
-	train_data = datasets.FashionMNIST(
-                root="data",
-                train = True,
-                transform = ToTensor(),
-                download = True)
-	test_data = datasets.FashionMNIST(
-                root="data",
-                train=False,
-                download=True,
-                transform = ToTensor())
-	trainLoader = DataLoader(train_data,batch_size=batch_size)
-	testLoader = DataLoader(test_data,batch_size=batch_size)
-
-	return trainLoader,testLoader
-
-def get_loss_func():
-	 loss = custom_loss
-
-	 return loss
+def get_mynn(inp_dim=64,hid_dim=13,num_classes=10):
+  mynn = MyNN(inp_dim,hid_dim,num_classes)
+  mynn.double()
+  return mynn
+def get_mnist_tensor():
+  # download sklearn mnist
+  # convert to tensor
+  X, y = None, None
+  # write your code
+  return X,y
+def get_loss_on_single_point(mynn=None,x0,y0):
+  y_pred, xencdec = mynn(x0)
+  lossval = mynn.loss_fn(x0,y0,y_pred,xencdec)
+  # the lossval should have grad_fn attribute set
+  return lossval
+def train_combined_encdec_predictor(mynn=None,X,y, epochs=11):
+  # X, y are provided as tensor
+  # perform training on the entire data set (no batches etc.)
+  # for each epoch, update weights
+  
+  optimizer = optim.SGD(mynn.parameters(), lr=0.01)
+  
+  for i in range(epochs):
+    optimizer.zero_grad()
+    ypred, Xencdec = mynn(X)
+    lval = mynn.loss_fn(X,y,ypred,Xencdec)
+    lval.backward()
+    optimzer.step()
+    
+  return mynn
